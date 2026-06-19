@@ -18,6 +18,62 @@ async function checkUrlExists(url: string): Promise<boolean> {
   }
 }
 
+/**
+ * Search DuckDuckGo HTML for a specific site-scoped query.
+ * Returns the first matching URL found, or null.
+ */
+async function searchDuckDuckGo(query: string): Promise<string | null> {
+  try {
+    const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
+    console.log(`[socialDiscoverer] DuckDuckGo search: ${query}`);
+    const res = await fetch(searchUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+      }
+    });
+    if (!res.ok) return null;
+    const html = await res.text();
+    // DuckDuckGo HTML results contain URLs in href attributes with uddg redirect
+    // Extract actual URLs from the page
+    const urlMatches = html.matchAll(/href="(https?:\/\/[^"]+)"/g);
+    for (const m of urlMatches) {
+      const decoded = decodeURIComponent(m[1]);
+      // Return the first result URL that isn't a DuckDuckGo internal link
+      if (!decoded.includes("duckduckgo.com") && !decoded.includes("duck.com")) {
+        return decoded;
+      }
+    }
+    return null;
+  } catch (err) {
+    console.error("[socialDiscoverer] DuckDuckGo search error:", err);
+    return null;
+  }
+}
+
+/**
+ * Search DuckDuckGo for the brand's YouTube channel URL.
+ */
+async function searchYouTubeChannel(brandName: string): Promise<string | null> {
+  const result = await searchDuckDuckGo(`site:youtube.com ${brandName} official channel`);
+  if (result && (result.includes("youtube.com/@") || result.includes("youtube.com/c/") || result.includes("youtube.com/channel/") || result.includes("youtube.com/user/"))) {
+    console.log(`[socialDiscoverer] DuckDuckGo found YouTube: ${result}`);
+    return result;
+  }
+  return null;
+}
+
+/**
+ * Search DuckDuckGo for the brand's subreddit URL.
+ */
+async function searchRedditSubreddit(brandName: string): Promise<string | null> {
+  const result = await searchDuckDuckGo(`site:reddit.com/r/ ${brandName}`);
+  if (result && result.includes("reddit.com/r/")) {
+    console.log(`[socialDiscoverer] DuckDuckGo found Reddit: ${result}`);
+    return result;
+  }
+  return null;
+}
+
 export async function discoverSocialMedia(
   brandHandle: string,
   websiteSocialLinks?: {
@@ -98,6 +154,33 @@ export async function discoverSocialMedia(
     ytExists = await checkUrlExists(`youtube.com/@${ytHandle}`) || await checkUrlExists(`youtube.com/c/${ytHandle}`);
   }
 
+  // DuckDuckGo fallback: search for the brand's YouTube channel if direct probe failed
+  if (!ytExists && !ytChannelId) {
+    console.log(`[socialDiscoverer] Direct YouTube probe failed for '${ytHandle}', trying DuckDuckGo fallback...`);
+    const ddgYtUrl = await searchYouTubeChannel(brandHandle);
+    if (ddgYtUrl) {
+      ytChannelUrl = ddgYtUrl;
+      ytExists = true;
+      // Re-parse the discovered URL
+      try {
+        const parsedUrl = new URL(ddgYtUrl);
+        const pathSegments = parsedUrl.pathname.split("/").filter(Boolean);
+        if (pathSegments.length > 0) {
+          const lastSegment = pathSegments[pathSegments.length - 1];
+          const secondLast = pathSegments.length > 1 ? pathSegments[pathSegments.length - 2] : "";
+          if (secondLast === "channel" && lastSegment.startsWith("UC")) {
+            ytChannelId = lastSegment;
+            ytHandle = "";
+          } else if (lastSegment.startsWith("@")) {
+            ytHandle = lastSegment;
+          } else {
+            ytHandle = lastSegment;
+          }
+        }
+      } catch { /* ignore parse errors */ }
+    }
+  }
+
   if (ytExists && YOUTUBE_API_KEY) {
     try {
       let targetUrl = "";
@@ -152,6 +235,20 @@ export async function discoverSocialMedia(
   let redditExists = !!redditUrl;
   if (!redditExists) {
     redditExists = await checkUrlExists(`reddit.com/r/${subreddit}`);
+  }
+
+  // DuckDuckGo fallback: search for the brand's subreddit if direct probe failed
+  if (!redditExists) {
+    console.log(`[socialDiscoverer] Direct Reddit probe failed for 'r/${subreddit}', trying DuckDuckGo fallback...`);
+    const ddgRedditUrl = await searchRedditSubreddit(brandHandle);
+    if (ddgRedditUrl) {
+      const match = ddgRedditUrl.match(/\/r\/([a-zA-Z0-9_\-]+)/);
+      if (match) {
+        subreddit = match[1];
+        redditExists = true;
+        console.log(`[socialDiscoverer] DuckDuckGo discovered subreddit: r/${subreddit}`);
+      }
+    }
   }
 
   if (redditExists) {

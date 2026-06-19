@@ -526,8 +526,6 @@ export function getHtmlTemplate(report: CompetitorReport): string {
     ` : `<p class="empty-state">SEO data unavailable.</p>`}
   </div>
 
-  <div class="page-break"></div>
-
   <!-- Social Media Presence -->
   <div class="section">
     <h2 class="section-title">Social Presence & Sentiment</h2>
