@@ -66,5 +66,6 @@ ${truncated}`;
 
   const websiteData = await runGroqPrompt<WebsiteData>(prompt, 0.3);
   console.log(`[websiteAnalyzer] Successfully analyzed website for ${websiteData.companyName}`);
+  console.log('Extracted social links:', websiteData.socialLinks);
   return websiteData;
 }

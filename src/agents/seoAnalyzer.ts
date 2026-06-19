@@ -27,7 +27,7 @@ export async function analyzeSEO(competitorUrl: string): Promise<SEOData> {
   if (GOOGLE_API_KEY) {
     try {
       // Fetch PageSpeed for Desktop (which is usually faster/more stable) or Mobile. Let's do Desktop first.
-      const psiUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(formattedUrl)}&strategy=desktop&key=${GOOGLE_API_KEY}`;
+      const psiUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(formattedUrl)}&strategy=desktop&category=performance&category=accessibility&category=seo&category=best-practices&key=${GOOGLE_API_KEY}`;
       const response = await fetch(psiUrl);
       if (response.ok) {
         const data: any = await response.json();

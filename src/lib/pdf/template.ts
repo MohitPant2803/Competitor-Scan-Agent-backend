@@ -573,9 +573,9 @@ export function getHtmlTemplate(report: CompetitorReport): string {
     <div class="card" style="margin-top: 15px;">
       <h3 class="card-title">Other Channels Existence</h3>
       <div class="badge-container">
-        <span class="badge" style="background-color: ${social?.twitterFound ? "#E0F2FE; color: #0369A1" : "#F1F5F9; color:#94A3B8"};">Twitter/X: ${social?.twitterFound ? "Detected" : "Not Found"}</span>
-        <span class="badge" style="background-color: ${social?.linkedinFound ? "#E0F2FE; color: #0369A1" : "#F1F5F9; color:#94A3B8"};">LinkedIn: ${social?.linkedinFound ? "Detected" : "Not Found"}</span>
-        <span class="badge" style="background-color: ${social?.instagramFound ? "#E0F2FE; color: #0369A1" : "#F1F5F9; color:#94A3B8"};">Instagram: ${social?.instagramFound ? "Detected" : "Not Found"}</span>
+        <span class="badge" style="background-color: ${social?.twitterFound ? "#E0F2FE; color: #0369A1" : "#F1F5F9; color:#94A3B8"};">Twitter/X: ${social?.twitterFound ? "Active (data not available via free APIs)" : "Not Found"}</span>
+        <span class="badge" style="background-color: ${social?.linkedinFound ? "#E0F2FE; color: #0369A1" : "#F1F5F9; color:#94A3B8"};">LinkedIn: ${social?.linkedinFound ? "Active (data not available via free APIs)" : "Not Found"}</span>
+        <span class="badge" style="background-color: ${social?.instagramFound ? "#E0F2FE; color: #0369A1" : "#F1F5F9; color:#94A3B8"};">Instagram: ${social?.instagramFound ? "Active (data not available via free APIs)" : "Not Found"}</span>
       </div>
     </div>
   </div>
