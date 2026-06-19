@@ -1,22 +1,23 @@
-import puppeteer from "puppeteer";
+import puppeteer from "puppeteer-core";
+import chromium from "@sparticuz/chromium";
 import { getHtmlTemplate } from "./template.js";
 import { CompetitorReport } from "../../types.js";
 
 export async function generatePdfBuffer(report: CompetitorReport): Promise<Buffer> {
-  console.log(`[pdfGenerator] Launching puppeteer for ${report.url}...`);
+  console.log(`[pdfGenerator] Launching puppeteer-core for ${report.url}...`);
   const htmlContent = getHtmlTemplate(report);
   
   const browser = await puppeteer.launch({
-    headless: true,
     args: [
+      ...chromium.args,
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
       '--disable-gpu',
-      '--no-first-run',
-      '--no-zygote',
       '--single-process'
-    ]
+    ],
+    executablePath: await chromium.executablePath(),
+    headless: chromium.headless,
   });
 
   try {
