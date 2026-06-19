@@ -1,6 +1,6 @@
-import { scrapeUrl } from "../lib/jina";
-import { runGroqPrompt } from "../lib/groq";
-import { ContentData } from "../types";
+import { scrapeUrl } from "../lib/jina.js";
+import { runGroqPrompt } from "../lib/groq.js";
+import { ContentData } from "../types.js";
 
 function resolveSubUrl(baseUrl: string, path: string): string {
   let base = baseUrl;

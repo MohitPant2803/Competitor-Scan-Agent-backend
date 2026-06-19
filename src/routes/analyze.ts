@@ -4,14 +4,14 @@ import fs from "fs";
 import path from "path";
 import os from "os";
 
-import { analyzeWebsite } from "../agents/websiteAnalyzer";
-import { extractPricing } from "../agents/pricingExtractor";
-import { analyzeSEO } from "../agents/seoAnalyzer";
-import { discoverSocialMedia } from "../agents/socialDiscoverer";
-import { analyzeContent } from "../agents/contentAnalyzer";
-import { synthesizeSWOT } from "../agents/swotSynthesizer";
-import { generatePdfBuffer } from "../lib/pdf/generator";
-import { CompetitorReport } from "../types";
+import { analyzeWebsite } from "../agents/websiteAnalyzer.js";
+import { extractPricing } from "../agents/pricingExtractor.js";
+import { analyzeSEO } from "../agents/seoAnalyzer.js";
+import { discoverSocialMedia } from "../agents/socialDiscoverer.js";
+import { analyzeContent } from "../agents/contentAnalyzer.js";
+import { synthesizeSWOT } from "../agents/swotSynthesizer.js";
+import { generatePdfBuffer } from "../lib/pdf/generator.js";
+import { CompetitorReport } from "../types.js";
 
 const router = Router();
 

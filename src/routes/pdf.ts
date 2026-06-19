@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
-import { generatePdfBuffer } from "../lib/pdf/generator";
-import { CompetitorReport } from "../types";
+import { generatePdfBuffer } from "../lib/pdf/generator.js";
+import { CompetitorReport } from "../types.js";
 
 const router = Router();
 

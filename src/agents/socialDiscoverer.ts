@@ -1,5 +1,5 @@
-import { SocialData } from "../types";
-import { runGroqPrompt } from "../lib/groq";
+import { SocialData } from "../types.js";
+import { runGroqPrompt } from "../lib/groq.js";
 import dotenv from "dotenv";
 
 dotenv.config();
