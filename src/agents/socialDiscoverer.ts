@@ -5,8 +5,9 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
+const YOUTUBE_API_KEY = process.env.GOOGLE_API_KEY;
 const REDDIT_USER_AGENT = process.env.REDDIT_USER_AGENT || "CompetitorScan/1.0";
+console.log('[socialDiscoverer] Module loaded. GOOGLE_API_KEY present:', !!YOUTUBE_API_KEY, '| starts with:', YOUTUBE_API_KEY?.slice(0, 5) || 'N/A');
 
 /**
  * Use YouTube Data API search to find a brand's channel by name.
@@ -207,8 +208,11 @@ export async function discoverSocialMedia(
     const handleUrl = `https://www.googleapis.com/youtube/v3/channels?part=statistics,snippet,contentDetails&forHandle=${encodeURIComponent(formattedHandle)}&key=${YOUTUBE_API_KEY}`;
     try {
       const handleRes = await fetch(handleUrl);
+      const handleRawText = await handleRes.text();
+      console.log(`[socialDiscoverer] forHandle API response status: ${handleRes.status}`);
+      console.log(`[socialDiscoverer] forHandle API raw response: ${handleRawText.slice(0, 500)}`);
       if (handleRes.ok) {
-        const handleData = await handleRes.json() as any;
+        const handleData = JSON.parse(handleRawText);
         const channel = handleData?.items?.[0];
         if (channel) {
           ytChannelId = channel.id;
@@ -217,6 +221,8 @@ export async function discoverSocialMedia(
         } else {
           console.log(`[socialDiscoverer] forHandle lookup returned 0 items for "${formattedHandle}"`);
         }
+      } else {
+        console.error(`[socialDiscoverer] forHandle API FAILED with status ${handleRes.status}`);
       }
     } catch (err) {
       console.error(`[socialDiscoverer] forHandle lookup error:`, err);
