@@ -34,7 +34,7 @@ export async function analyzeContent(competitorUrl: string): Promise<ContentData
     }
   }
 
-  const truncated = truncateContent(content, 8000);
+  const truncated = truncateContent(content, 4000);
 
   const prompt = `Analyze this blog/content page and return JSON:
 {

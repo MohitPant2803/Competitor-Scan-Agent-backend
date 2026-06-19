@@ -29,7 +29,7 @@ export async function extractPricing(competitorUrl: string): Promise<PricingData
     content = await scrapeUrl(competitorUrl);
   }
 
-  const truncated = truncateContent(content, 8000);
+  const truncated = truncateContent(content, 4000);
 
   const prompt = `Extract pricing information from this content as JSON:
 {

@@ -28,7 +28,7 @@ export async function analyzeSEO(competitorUrl: string): Promise<SEOData> {
     try {
       // Fetch PageSpeed for Desktop (which is usually faster/more stable) or Mobile. Let's do Desktop first.
       const psiUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(formattedUrl)}&strategy=desktop&category=performance&category=accessibility&category=seo&category=best-practices&key=${GOOGLE_API_KEY}`;
-      const response = await fetch(psiUrl);
+      const response = await fetch(psiUrl, { signal: AbortSignal.timeout(20000) });
       if (response.ok) {
         const data: any = await response.json();
         const categories = data?.lighthouseResult?.categories;
@@ -64,7 +64,8 @@ export async function analyzeSEO(competitorUrl: string): Promise<SEOData> {
           "Content-Type": "application/json",
           "API-Key": URLSCAN_API_KEY
         },
-        body: JSON.stringify({ url: formattedUrl, visibility: "public" })
+        body: JSON.stringify({ url: formattedUrl, visibility: "public" }),
+        signal: AbortSignal.timeout(10000)
       });
 
       if (scanRes.ok) {
@@ -83,7 +84,7 @@ export async function analyzeSEO(competitorUrl: string): Promise<SEOData> {
           while (pollAttempts < maxPollAttempts && !scanSuccess) {
             try {
               console.log(`[seoAnalyzer] Polling urlscan.io result (attempt ${pollAttempts + 1}/${maxPollAttempts})...`);
-              const resultRes = await fetch(apiResultUrl);
+              const resultRes = await fetch(apiResultUrl, { signal: AbortSignal.timeout(8000) });
               if (resultRes.status === 200) {
                 const resultData: any = await resultRes.json();
                 

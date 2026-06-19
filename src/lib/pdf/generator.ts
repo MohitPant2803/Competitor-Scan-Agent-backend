@@ -7,17 +7,40 @@ export async function generatePdfBuffer(report: CompetitorReport): Promise<Buffe
   console.log(`[pdfGenerator] Launching puppeteer-core for ${report.url}...`);
   const htmlContent = getHtmlTemplate(report);
   
+  let execPath = await chromium.executablePath();
+  let launchArgs = [
+    ...chromium.args,
+    '--no-sandbox',
+    '--disable-setuid-sandbox',
+    '--disable-dev-shm-usage',
+    '--disable-gpu',
+    '--single-process'
+  ];
+  let isHeadless = chromium.headless;
+
+  if (process.platform === "win32") {
+    const fs = await import("fs");
+    const os = await import("os");
+    const possiblePaths = [
+      "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+      "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+      "C:\\Users\\" + os.userInfo().username + "\\AppData\\Local\\Google\\Chrome\\Application\\chrome.exe"
+    ];
+    for (const p of possiblePaths) {
+      if (fs.existsSync(p)) {
+        execPath = p;
+        launchArgs = [];
+        isHeadless = true;
+        console.log(`[pdfGenerator] Found local Windows Chrome at: ${execPath}`);
+        break;
+      }
+    }
+  }
+
   const browser = await puppeteer.launch({
-    args: [
-      ...chromium.args,
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
-      '--single-process'
-    ],
-    executablePath: await chromium.executablePath(),
-    headless: chromium.headless,
+    args: launchArgs,
+    executablePath: execPath,
+    headless: isHeadless,
   });
 
   try {

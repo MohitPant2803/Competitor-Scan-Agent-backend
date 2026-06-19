@@ -10,6 +10,27 @@ if (!apiKey) {
 
 const groq = new Groq({ apiKey: apiKey || "" });
 
+function extractJsonString(content: string): string {
+  const firstBrace = content.indexOf("{");
+  const firstBracket = content.indexOf("[");
+  let startIdx = -1;
+  let endIdx = -1;
+
+  if (firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) {
+    startIdx = firstBrace;
+    endIdx = content.lastIndexOf("}");
+  } else if (firstBracket !== -1) {
+    startIdx = firstBracket;
+    endIdx = content.lastIndexOf("]");
+  }
+
+  if (startIdx === -1 || endIdx === -1 || endIdx < startIdx) {
+    throw new Error("Could not find any JSON object or array in LLM response");
+  }
+
+  return content.slice(startIdx, endIdx + 1);
+}
+
 export async function runGroqPrompt<T>(
   prompt: string,
   temperature: number = 0.3,
@@ -18,11 +39,13 @@ export async function runGroqPrompt<T>(
   let retries = 0;
   const maxRetries = 3;
   let delay = 1000;
+  let model = "llama-3.3-70b-versatile";
 
   while (true) {
     try {
+      console.log(`[groq] Calling Groq API with model "${model}"...`);
       const response = await groq.chat.completions.create({
-        model: "llama-3.3-70b-versatile",
+        model: model,
         messages: [{ role: "user", content: prompt }],
         temperature: temperature,
         max_tokens: maxTokens,
@@ -33,16 +56,26 @@ export async function runGroqPrompt<T>(
         throw new Error("Empty response from Groq");
       }
 
-      // Strip markdown backticks before JSON.parse()
-      const clean = content.replace(/```json|```/g, "").trim();
+      const clean = extractJsonString(content);
       const parsed = JSON.parse(clean) as T;
       return parsed;
     } catch (error: any) {
+      console.warn(`[groq] Error with model "${model}":`, error?.message || error);
+      
+      // If we got an error and we are on the primary model, switch to llama-3.1-8b-instant immediately
+      if (model === "llama-3.3-70b-versatile") {
+        console.warn(`[groq] Switching to fallback model "llama-3.1-8b-instant" due to error.`);
+        model = "llama-3.1-8b-instant";
+        retries = 0;
+        delay = 1000;
+        continue;
+      }
+
       retries++;
       if (retries >= maxRetries) {
         throw error;
       }
-      console.warn(`Groq prompt failed (attempt ${retries}/${maxRetries}). Retrying in ${delay}ms...`, error?.message || error);
+      console.warn(`Groq prompt failed (attempt ${retries}/${maxRetries}). Retrying in ${delay}ms...`);
       await new Promise((resolve) => setTimeout(resolve, delay));
       delay *= 2;
     }

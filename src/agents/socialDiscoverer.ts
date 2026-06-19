@@ -21,7 +21,7 @@ async function searchYouTubeByAPI(brandName: string): Promise<{ channelId: strin
   try {
     const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(brandName)}&maxResults=3&key=${YOUTUBE_API_KEY}`;
     console.log(`[socialDiscoverer] YouTube API search for "${brandName}"...`);
-    const res = await fetch(searchUrl);
+    const res = await fetch(searchUrl, { signal: AbortSignal.timeout(8000) });
     if (!res.ok) {
       console.error(`[socialDiscoverer] YouTube search API returned ${res.status}: ${await res.text()}`);
       return null;
@@ -82,7 +82,8 @@ async function findSubreddit(brandName: string): Promise<string | null> {
       console.log(`[socialDiscoverer] Reddit: probing r/${variant}...`);
       const res = await fetch(aboutUrl, {
         headers: { "User-Agent": REDDIT_USER_AGENT },
-        redirect: "follow"
+        redirect: "follow",
+        signal: AbortSignal.timeout(6000)
       });
 
       if (res.ok) {
@@ -207,7 +208,7 @@ export async function discoverSocialMedia(
     const formattedHandle = ytHandle.startsWith("@") ? ytHandle : `@${ytHandle}`;
     const handleUrl = `https://www.googleapis.com/youtube/v3/channels?part=statistics,snippet,contentDetails&forHandle=${encodeURIComponent(formattedHandle)}&key=${YOUTUBE_API_KEY}`;
     try {
-      const handleRes = await fetch(handleUrl);
+      const handleRes = await fetch(handleUrl, { signal: AbortSignal.timeout(8000) });
       const handleRawText = await handleRes.text();
       console.log(`[socialDiscoverer] forHandle API response status: ${handleRes.status}`);
       console.log(`[socialDiscoverer] forHandle API raw response: ${handleRawText.slice(0, 500)}`);
@@ -256,7 +257,7 @@ export async function discoverSocialMedia(
     try {
       const detailUrl = `https://www.googleapis.com/youtube/v3/channels?part=statistics,snippet,contentDetails&id=${encodeURIComponent(ytChannelId)}&key=${YOUTUBE_API_KEY}`;
       console.log(`[socialDiscoverer] Fetching full YouTube channel details for ID: ${ytChannelId}...`);
-      const channelRes = await fetch(detailUrl);
+      const channelRes = await fetch(detailUrl, { signal: AbortSignal.timeout(8000) });
       if (channelRes.ok) {
         const chanData = await channelRes.json() as any;
         const channel = chanData?.items?.[0];
@@ -270,7 +271,7 @@ export async function discoverSocialMedia(
           console.log(`[socialDiscoverer] ✅ YouTube FOUND: "${channel.snippet?.title}" | ${socialData.youtube!.subscriberCount} subs | ${socialData.youtube!.videoCount} videos`);
 
           // Fetch recent video titles from RSS feed
-          const feedRes = await fetch(`https://www.youtube.com/feeds/videos.xml?channel_id=${ytChannelId}`);
+          const feedRes = await fetch(`https://www.youtube.com/feeds/videos.xml?channel_id=${ytChannelId}`, { signal: AbortSignal.timeout(6000) });
           if (feedRes.ok) {
             const xmlText = await feedRes.text();
             const titleMatches = xmlText.matchAll(/<title>([^<]+)<\/title>/g);
@@ -324,7 +325,8 @@ export async function discoverSocialMedia(
     console.log(`[socialDiscoverer] Fetching full subreddit data for r/${subreddit}...`);
     try {
       const aboutRes = await fetch(`https://www.reddit.com/r/${subreddit}/about.json`, {
-        headers: { "User-Agent": REDDIT_USER_AGENT }
+        headers: { "User-Agent": REDDIT_USER_AGENT },
+        signal: AbortSignal.timeout(6000)
       });
       if (aboutRes.ok) {
         const aboutData = await aboutRes.json() as any;
@@ -341,7 +343,8 @@ export async function discoverSocialMedia(
 
       if (socialData.reddit!.subredditFound) {
         const topRes = await fetch(`https://www.reddit.com/r/${subreddit}/top.json?limit=5`, {
-          headers: { "User-Agent": REDDIT_USER_AGENT }
+          headers: { "User-Agent": REDDIT_USER_AGENT },
+          signal: AbortSignal.timeout(6000)
         });
         if (topRes.ok) {
           const topData = await topRes.json() as any;
@@ -382,19 +385,19 @@ Return only valid JSON, no markdown.`;
   // If no links from website, try simple HEAD probes as a heuristic
   if (!socialData.twitterFound) {
     try {
-      const xRes = await fetch(`https://x.com/${handle}`, { method: "HEAD", redirect: "follow" });
+      const xRes = await fetch(`https://x.com/${handle}`, { method: "HEAD", redirect: "follow", signal: AbortSignal.timeout(4000) });
       socialData.twitterFound = xRes.status >= 200 && xRes.status < 400;
     } catch { /* ignore */ }
   }
   if (!socialData.linkedinFound) {
     try {
-      const liRes = await fetch(`https://linkedin.com/company/${handle}`, { method: "HEAD", redirect: "follow" });
+      const liRes = await fetch(`https://linkedin.com/company/${handle}`, { method: "HEAD", redirect: "follow", signal: AbortSignal.timeout(4000) });
       socialData.linkedinFound = liRes.status >= 200 && liRes.status < 400;
     } catch { /* ignore */ }
   }
   if (!socialData.instagramFound) {
     try {
-      const igRes = await fetch(`https://instagram.com/${handle}`, { method: "HEAD", redirect: "follow" });
+      const igRes = await fetch(`https://instagram.com/${handle}`, { method: "HEAD", redirect: "follow", signal: AbortSignal.timeout(4000) });
       socialData.instagramFound = igRes.status >= 200 && igRes.status < 400;
     } catch { /* ignore */ }
   }

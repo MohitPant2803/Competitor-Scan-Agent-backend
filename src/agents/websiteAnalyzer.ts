@@ -115,7 +115,7 @@ export async function analyzeWebsite(competitorUrl: string): Promise<WebsiteData
   console.log(`[websiteAnalyzer] Cleaned content: ${cleaned.length} chars (saved ${combinedContent.length - cleaned.length} chars)`);
 
   // Step 3: Truncate cleaned content
-  const truncated = truncateContent(cleaned, 15000);
+  const truncated = truncateContent(cleaned, 6000);
 
   // Step 4: Include pre-extracted social links in the prompt so Groq has them
   const socialLinksHint = `\n\n--- SOCIAL LINKS FOUND IN PAGE ---\n${JSON.stringify(rawSocialLinks, null, 2)}\n`;
