@@ -1,4 +1,4 @@
-import { scrapeUrl } from "../lib/jina.js";
+import { scrapeUrl, truncateContent } from "../lib/jina.js";
 import { runGroqPrompt } from "../lib/groq.js";
 import { ContentData } from "../types.js";
 
@@ -34,9 +34,7 @@ export async function analyzeContent(competitorUrl: string): Promise<ContentData
     }
   }
 
-  if (content.length > 40000) {
-    content = content.substring(0, 40000);
-  }
+  const truncated = truncateContent(content, 8000);
 
   const prompt = `Analyze this blog/content page and return JSON:
 {
@@ -50,7 +48,7 @@ export async function analyzeContent(competitorUrl: string): Promise<ContentData
 Return only valid JSON, no markdown.
 
 Content:
-${content}`;
+${truncated}`;
 
   const contentData = await runGroqPrompt<ContentData>(prompt, 0.3);
   console.log(`[contentAnalyzer] Blog analysis complete. Has active blog: ${contentData.hasActiveBlog}`);

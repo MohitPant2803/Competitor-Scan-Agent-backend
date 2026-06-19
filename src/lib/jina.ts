@@ -76,3 +76,8 @@ export async function scrapeUrl(url: string): Promise<string> {
     throw new Error(`Failed to scrape URL with Jina and fallback: ${fallbackError?.message || fallbackError}`);
   }
 }
+
+export function truncateContent(content: string, maxChars: number = 12000): string {
+  if (content.length <= maxChars) return content;
+  return content.slice(0, maxChars) + '\n...[truncated]';
+}

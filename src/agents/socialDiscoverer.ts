@@ -1,5 +1,6 @@
 import { SocialData } from "../types.js";
 import { runGroqPrompt } from "../lib/groq.js";
+import { truncateContent } from "../lib/jina.js";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -141,8 +142,9 @@ export async function discoverSocialMedia(
         socialData.reddit!.topPostTitles = titles;
 
         if (titles.length > 0) {
+          const truncatedReddit = truncateContent(JSON.stringify(titles), 4000);
           const sentimentPrompt = `Summarize the overall sentiment and main topics discussed in this subreddit in 2-3 sentences based on these top post titles:
-${JSON.stringify(titles)}
+${truncatedReddit}
 
 Return as JSON:
 {

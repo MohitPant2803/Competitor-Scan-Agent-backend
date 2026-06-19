@@ -1,4 +1,5 @@
 import { runGroqPrompt } from "../lib/groq.js";
+import { truncateContent } from "../lib/jina.js";
 import { SWOTData, WebsiteData, PricingData, SEOData, SocialData, ContentData } from "../types.js";
 
 export async function synthesizeSWOT(
@@ -10,16 +11,28 @@ export async function synthesizeSWOT(
 ): Promise<SWOTData> {
   console.log(`[swotSynthesizer] Synthesizing SWOT report...`);
 
+  const companyStr = websiteData ? JSON.stringify(websiteData) : "Data unavailable";
+  const pricingStr = pricingData ? JSON.stringify(pricingData) : "Data unavailable";
+  const seoStr = seoData ? JSON.stringify(seoData) : "Data unavailable";
+  const socialStr = socialData ? JSON.stringify(socialData) : "Data unavailable";
+  const contentStr = contentData ? JSON.stringify(contentData) : "Data unavailable";
+
+  const truncatedCompany = truncateContent(companyStr, 500);
+  const truncatedPricing = truncateContent(pricingStr, 500);
+  const truncatedSeo = truncateContent(seoStr, 500);
+  const truncatedSocial = truncateContent(socialStr, 500);
+  const truncatedContentData = truncateContent(contentStr, 500);
+
   const prompt = `You are a senior business analyst. Based on this competitor research data,
 generate a detailed SWOT analysis from the perspective of a business owner 
 competing against this company.
 
 Data:
-- Company: ${JSON.stringify(websiteData || "Data unavailable")}
-- Pricing: ${JSON.stringify(pricingData || "Data unavailable")}  
-- SEO Performance: ${JSON.stringify(seoData || "Data unavailable")}
-- Social Presence: ${JSON.stringify(socialData || "Data unavailable")}
-- Content Strategy: ${JSON.stringify(contentData || "Data unavailable")}
+- Company: ${truncatedCompany}
+- Pricing: ${truncatedPricing}  
+- SEO Performance: ${truncatedSeo}
+- Social Presence: ${truncatedSocial}
+- Content Strategy: ${truncatedContentData}
 
 Return as JSON:
 {

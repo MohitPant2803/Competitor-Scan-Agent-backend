@@ -1,4 +1,4 @@
-import { scrapeUrl } from "../lib/jina.js";
+import { scrapeUrl, truncateContent } from "../lib/jina.js";
 import { runGroqPrompt } from "../lib/groq.js";
 import { PricingData } from "../types.js";
 
@@ -29,9 +29,7 @@ export async function extractPricing(competitorUrl: string): Promise<PricingData
     content = await scrapeUrl(competitorUrl);
   }
 
-  if (content.length > 40000) {
-    content = content.substring(0, 40000);
-  }
+  const truncated = truncateContent(content, 8000);
 
   const prompt = `Extract pricing information from this content as JSON:
 {
@@ -53,7 +51,7 @@ export async function extractPricing(competitorUrl: string): Promise<PricingData
 Return only valid JSON, no markdown.
 
 Content:
-${content}`;
+${truncated}`;
 
   const pricingData = await runGroqPrompt<PricingData>(prompt, 0.3);
   console.log(`[pricingExtractor] Successfully extracted pricing. Plans found: ${pricingData.plans?.length || 0}`);

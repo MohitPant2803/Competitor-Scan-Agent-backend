@@ -1,4 +1,4 @@
-import { scrapeUrl } from "../lib/jina.js";
+import { scrapeUrl, truncateContent } from "../lib/jina.js";
 import { runGroqPrompt } from "../lib/groq.js";
 import { WebsiteData } from "../types.js";
 
@@ -40,10 +40,7 @@ export async function analyzeWebsite(competitorUrl: string): Promise<WebsiteData
     throw new Error("Failed to scrape any content from the website.");
   }
 
-  // Truncate to avoid exceeding model context limits (llama 3.3 has 128k context, but let's keep it reasonable, e.g., 40,000 characters)
-  if (combinedContent.length > 40000) {
-    combinedContent = combinedContent.substring(0, 40000) + "\n...[Content Truncated]...";
-  }
+  const truncated = truncateContent(combinedContent, 12000);
 
   const prompt = `From this website content, extract the following as JSON:
 {
@@ -65,7 +62,7 @@ export async function analyzeWebsite(competitorUrl: string): Promise<WebsiteData
 Return only valid JSON, no markdown.
 
 Website Content:
-${combinedContent}`;
+${truncated}`;
 
   const websiteData = await runGroqPrompt<WebsiteData>(prompt, 0.3);
   console.log(`[websiteAnalyzer] Successfully analyzed website for ${websiteData.companyName}`);
