@@ -215,9 +215,16 @@ export async function discoverSocialMedia(
         const handleData = JSON.parse(handleRawText);
         const channel = handleData?.items?.[0];
         if (channel) {
-          ytChannelId = channel.id;
-          ytFound = true;
-          console.log(`[socialDiscoverer] forHandle lookup SUCCESS! Channel: "${channel.snippet?.title}" ID: ${ytChannelId}`);
+          const subCount = Number(channel.statistics?.subscriberCount || 0);
+          console.log(`[socialDiscoverer] forHandle found: "${channel.snippet?.title}" | ${subCount} subs | ${channel.statistics?.videoCount} videos`);
+          // Sanity check: ignore channels with < 100 subs (likely squatters/wrong channels)
+          if (subCount >= 100) {
+            ytChannelId = channel.id;
+            ytFound = true;
+            console.log(`[socialDiscoverer] forHandle lookup ACCEPTED (${subCount} subs ≥ 100)`);
+          } else {
+            console.log(`[socialDiscoverer] forHandle lookup REJECTED — only ${subCount} subs, likely a squatter. Will try search API.`);
+          }
         } else {
           console.log(`[socialDiscoverer] forHandle lookup returned 0 items for "${formattedHandle}"`);
         }
