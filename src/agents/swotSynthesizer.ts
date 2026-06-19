@@ -1,5 +1,5 @@
-import { runGroqPrompt } from "../lib/groq.js";
-import { SWOTData, WebsiteData, PricingData, SEOData, SocialData, ContentData } from "../types.js";
+import { runGroqPrompt } from "../lib/groq";
+import { SWOTData, WebsiteData, PricingData, SEOData, SocialData, ContentData } from "../types";
 
 export async function synthesizeSWOT(
   websiteData?: WebsiteData,

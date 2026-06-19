@@ -1,4 +1,4 @@
-import { CompetitorReport } from "../../types.js";
+import { CompetitorReport } from "../../types";
 
 export function getHtmlTemplate(report: CompetitorReport): string {
   const dateStr = new Date(report.createdAt).toLocaleDateString("en-US", {

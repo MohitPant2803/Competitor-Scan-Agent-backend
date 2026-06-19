@@ -1,4 +1,4 @@
-import { SEOData } from "../types.js";
+import { SEOData } from "../types";
 import dotenv from "dotenv";
 
 dotenv.config();

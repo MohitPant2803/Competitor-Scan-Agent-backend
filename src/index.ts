@@ -2,9 +2,9 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 
-import analyzeRouter from "./routes/analyze.js";
-import pdfRouter from "./routes/pdf.js";
-import downloadRouter from "./routes/download.js";
+import analyzeRouter from "./routes/analyze";
+import pdfRouter from "./routes/pdf";
+import downloadRouter from "./routes/download";
 
 dotenv.config();
 

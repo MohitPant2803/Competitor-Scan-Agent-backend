@@ -1,6 +1,6 @@
 import puppeteer from "puppeteer";
-import { getHtmlTemplate } from "./template.js";
-import { CompetitorReport } from "../../types.js";
+import { getHtmlTemplate } from "./template";
+import { CompetitorReport } from "../../types";
 
 export async function generatePdfBuffer(report: CompetitorReport): Promise<Buffer> {
   console.log(`[pdfGenerator] Launching puppeteer for ${report.url}...`);
