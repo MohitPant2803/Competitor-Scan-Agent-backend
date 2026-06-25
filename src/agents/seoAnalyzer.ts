@@ -15,39 +15,60 @@ export async function analyzeSEO(competitorUrl: string): Promise<SEOData> {
   }
 
   // 1. Fetch PageSpeed Insights
-  let performanceScore = 0;
-  let accessibilityScore = 0;
-  let seoScore = 0;
-  let bestPracticesScore = 0;
+  let performanceScore: number | null = null;
+  let accessibilityScore: number | null = null;
+  let seoScore: number | null = null;
+  let bestPracticesScore: number | null = null;
   let LCP = "N/A";
   let CLS = "N/A";
   let FID = "N/A";
   let TTI = "N/A";
 
   if (GOOGLE_API_KEY) {
-    try {
-      // Fetch PageSpeed for Desktop (which is usually faster/more stable) or Mobile. Let's do Desktop first.
-      const psiUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(formattedUrl)}&strategy=desktop&category=performance&category=accessibility&category=seo&category=best-practices&key=${GOOGLE_API_KEY}`;
-      const response = await fetch(psiUrl, { signal: AbortSignal.timeout(20000) });
-      if (response.ok) {
-        const data: any = await response.json();
-        const categories = data?.lighthouseResult?.categories;
-        const audits = data?.lighthouseResult?.audits;
+    let attempts = 0;
+    const maxAttempts = 2;
+    let psiSuccess = false;
 
-        performanceScore = Math.round((categories?.performance?.score || 0) * 100);
-        accessibilityScore = Math.round((categories?.accessibility?.score || 0) * 100);
-        seoScore = Math.round((categories?.seo?.score || 0) * 100);
-        bestPracticesScore = Math.round((categories?.['best-practices']?.score || 0) * 100);
+    while (attempts < maxAttempts && !psiSuccess) {
+      try {
+        console.log(`[seoAnalyzer] Fetching PageSpeed data (attempt ${attempts + 1}/${maxAttempts}) for ${formattedUrl}...`);
+        // Fetch PageSpeed for Desktop (which is usually faster/more stable) or Mobile. Let's do Desktop first.
+        const psiUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(formattedUrl)}&strategy=desktop&category=performance&category=accessibility&category=seo&category=best-practices&key=${GOOGLE_API_KEY}`;
+        const response = await fetch(psiUrl, { signal: AbortSignal.timeout(20000) });
+        
+        if (response.ok) {
+          const data: any = await response.json();
+          const categories = data?.lighthouseResult?.categories;
+          const audits = data?.lighthouseResult?.audits;
 
-        LCP = audits?.['largest-contentful-paint']?.displayValue || "N/A";
-        CLS = audits?.['cumulative-layout-shift']?.displayValue || "N/A";
-        FID = audits?.['max-potential-fid']?.displayValue || "N/A";
-        TTI = audits?.['interactive']?.displayValue || "N/A";
-      } else {
-        console.warn(`[seoAnalyzer] PageSpeed API returned error: ${response.status}`);
+          performanceScore = (categories?.performance?.score !== undefined && categories?.performance?.score !== null)
+            ? Math.round(categories.performance.score * 100)
+            : null;
+          accessibilityScore = (categories?.accessibility?.score !== undefined && categories?.accessibility?.score !== null)
+            ? Math.round(categories.accessibility.score * 100)
+            : null;
+          seoScore = (categories?.seo?.score !== undefined && categories?.seo?.score !== null)
+            ? Math.round(categories.seo.score * 100)
+            : null;
+          bestPracticesScore = (categories?.['best-practices']?.score !== undefined && categories?.['best-practices']?.score !== null)
+            ? Math.round(categories['best-practices'].score * 100)
+            : null;
+
+          LCP = audits?.['largest-contentful-paint']?.displayValue || "N/A";
+          CLS = audits?.['cumulative-layout-shift']?.displayValue || "N/A";
+          FID = audits?.['max-potential-fid']?.displayValue || "N/A";
+          TTI = audits?.['interactive']?.displayValue || "N/A";
+          
+          psiSuccess = true;
+          console.log(`[seoAnalyzer] PageSpeed data fetched successfully on attempt ${attempts + 1}`);
+        } else {
+          console.warn(`[seoAnalyzer] PageSpeed API returned error on attempt ${attempts + 1}: ${response.status}`);
+          attempts++;
+        }
+      } catch (err: any) {
+        console.error(`[seoAnalyzer] Error/timeout fetching PageSpeed data (attempt ${attempts + 1}/${maxAttempts}):`, err?.message || err);
+        attempts++;
       }
-    } catch (err) {
-      console.error("[seoAnalyzer] Error fetching PageSpeed data:", err);
     }
   } else {
     console.warn("[seoAnalyzer] GOOGLE_API_KEY not defined, skipping PageSpeed.");

@@ -12,6 +12,7 @@ import { analyzeContent } from "../agents/contentAnalyzer.js";
 import { synthesizeSWOT } from "../agents/swotSynthesizer.js";
 import { generatePdfBuffer } from "../lib/pdf/generator.js";
 import { CompetitorReport } from "../types.js";
+import { groqStorage } from "../lib/groq.js";
 
 const router = Router();
 
@@ -38,140 +39,148 @@ const handleAnalyze = async (req: Request, res: Response) => {
   console.log(`[routes/analyze] Starting research orchestrator for: ${competitorUrl} (ID: ${reportId})`);
   sendProgress("scraping", "pending", "Scraping website homepage...");
 
-  // Set up Promises for parallel execution
-  // Website Analyzer runs first so Social Discoverer can consume its output
-  const websitePromise = analyzeWebsite(competitorUrl);
+  await groqStorage.run({ degradedMode: false }, async () => {
+    // Set up Promises for parallel execution
+    // Website Analyzer runs first so Social Discoverer can consume its output
+    const websitePromise = analyzeWebsite(competitorUrl);
 
-  const pricingPromise = extractPricing(competitorUrl);
-  const seoPromise = analyzeSEO(competitorUrl);
-  const contentPromise = analyzeContent(competitorUrl);
+    const pricingPromise = extractPricing(competitorUrl);
+    const seoPromise = analyzeSEO(competitorUrl);
+    const contentPromise = analyzeContent(competitorUrl);
 
-  const socialPromise = (async () => {
+    const socialPromise = (async () => {
+      try {
+        const websiteData = await websitePromise;
+        return await discoverSocialMedia(websiteData.brandHandle, websiteData.socialLinks);
+      } catch (err) {
+        console.warn(`[routes/analyze] websiteAnalyzer failed before socialDiscoverer. Extracting handle from URL.`, err);
+        // Fallback: extract handle from URL
+        const cleanUrl = competitorUrl.replace(/https?:\/\/(?:www\.)?/, "");
+        const brandHandle = cleanUrl.split(".")[0] || "competitor";
+        return await discoverSocialMedia(brandHandle);
+      }
+    })();
+
+    // Track completion of individual steps
+    let websiteData: any = undefined;
+    let pricingData: any = undefined;
+    let seoData: any = undefined;
+    let socialData: any = undefined;
+    let contentData: any = undefined;
+
+    const wrappedWebsite = (async () => {
+      try {
+        websiteData = await websitePromise;
+        sendProgress("scraping", "complete", "Website scraped", { detail: `Company: ${websiteData.companyName}` });
+      } catch (err: any) {
+        console.error("[routes/analyze] websiteAnalyzer failed:", err);
+        sendProgress("scraping", "failed", "Website scraping failed (Data unavailable)");
+      }
+    })();
+
+    const wrappedPricing = (async () => {
+      try {
+        pricingData = await pricingPromise;
+        const plansCount = pricingData.plans?.length || 0;
+        sendProgress("pricing", "complete", "Pricing extracted", {
+          detail: pricingData.hasPricing ? `Found ${plansCount} pricing plans` : "Contact sales / No public pricing"
+        });
+      } catch (err: any) {
+        console.error("[routes/analyze] pricingExtractor failed:", err);
+        sendProgress("pricing", "failed", "Pricing extraction failed (Data unavailable)");
+      }
+    })();
+
+    const wrappedSeo = (async () => {
+      try {
+        seoData = await seoPromise;
+        const scoreText = seoData.performanceScore !== null ? `Performance Score: ${seoData.performanceScore}/100` : "Score unavailable";
+        sendProgress("seo", "complete", "SEO analyzed", { detail: scoreText });
+      } catch (err: any) {
+        console.error("[routes/analyze] seoAnalyzer failed:", err);
+        sendProgress("seo", "failed", "SEO analysis failed (Data unavailable)");
+      }
+    })();
+
+    const wrappedSocial = (async () => {
+      try {
+        socialData = await socialPromise;
+        const ytSub = socialData.youtube?.channelFound ? `YouTube: ${socialData.youtube.subscriberCount} subs` : "";
+        const redditSub = socialData.reddit?.subredditFound ? `Reddit: ${socialData.reddit.subscribers} members` : "";
+        const details = [ytSub, redditSub].filter(Boolean).join(", ") || "No major social channels found";
+        sendProgress("social", "complete", "Social media found", { detail: details });
+      } catch (err: any) {
+        console.error("[routes/analyze] socialDiscoverer failed:", err);
+        sendProgress("social", "failed", "Social discovery failed (Data unavailable)");
+      }
+    })();
+
+    const wrappedContent = (async () => {
+      try {
+        contentData = await contentPromise;
+        sendProgress("content", "complete", "Content strategy analyzed", {
+          detail: contentData.hasActiveBlog ? `Blog active: ${contentData.postingFrequency}` : "No active blog found"
+        });
+      } catch (err: any) {
+        console.error("[routes/analyze] contentAnalyzer failed:", err);
+        sendProgress("content", "failed", "Content strategy analysis failed (Data unavailable)");
+      }
+    })();
+
+    // Run all 5 sub-agents in parallel
+    await Promise.allSettled([
+      wrappedWebsite,
+      wrappedPricing,
+      wrappedSeo,
+      wrappedSocial,
+      wrappedContent
+    ]);
+
+    // SWOT Report step
+    sendProgress("swot", "pending", "Generating SWOT report...");
+    let swotData: any = undefined;
     try {
-      const websiteData = await websitePromise;
-      return await discoverSocialMedia(websiteData.brandHandle, websiteData.socialLinks);
-    } catch (err) {
-      console.warn(`[routes/analyze] websiteAnalyzer failed before socialDiscoverer. Extracting handle from URL.`, err);
-      // Fallback: extract handle from URL
-      const cleanUrl = competitorUrl.replace(/https?:\/\/(?:www\.)?/, "");
-      const brandHandle = cleanUrl.split(".")[0] || "competitor";
-      return await discoverSocialMedia(brandHandle);
-    }
-  })();
-
-  // Track completion of individual steps
-  let websiteData: any = undefined;
-  let pricingData: any = undefined;
-  let seoData: any = undefined;
-  let socialData: any = undefined;
-  let contentData: any = undefined;
-
-  const wrappedWebsite = (async () => {
-    try {
-      websiteData = await websitePromise;
-      sendProgress("scraping", "complete", "Website scraped", { detail: `Company: ${websiteData.companyName}` });
+      swotData = await synthesizeSWOT(websiteData, pricingData, seoData, socialData, contentData);
+      sendProgress("swot", "complete", "SWOT generated", { detail: "Analysis complete" });
     } catch (err: any) {
-      console.error("[routes/analyze] websiteAnalyzer failed:", err);
-      sendProgress("scraping", "failed", "Website scraping failed (Data unavailable)");
+      console.error("[routes/analyze] swotSynthesizer failed:", err);
+      sendProgress("swot", "failed", "SWOT generation failed (Data unavailable)");
     }
-  })();
 
-  const wrappedPricing = (async () => {
+    // PDF generation step
+    sendProgress("pdf", "pending", "Building PDF...");
     try {
-      pricingData = await pricingPromise;
-      const plansCount = pricingData.plans?.length || 0;
-      sendProgress("pricing", "complete", "Pricing extracted", {
-        detail: pricingData.hasPricing ? `Found ${plansCount} pricing plans` : "Contact sales / No public pricing"
-      });
+      const store = groqStorage.getStore();
+      const degradedMode = store?.degradedMode || false;
+      console.log(`[routes/analyze] Report completed. degradedMode: ${degradedMode}`);
+
+      const report: CompetitorReport = {
+        id: reportId,
+        url: competitorUrl,
+        createdAt: new Date().toISOString(),
+        degradedMode,
+        websiteData,
+        pricingData,
+        seoData,
+        socialData,
+        contentData,
+        swotData
+      };
+
+      const pdfBuffer = await generatePdfBuffer(report);
+
+      // Save PDF in temporary folder
+      const tempDir = os.tmpdir();
+      const filePath = path.join(tempDir, `${reportId}.pdf`);
+      fs.writeFileSync(filePath, pdfBuffer);
+      console.log(`[routes/analyze] PDF saved to temporary location: ${filePath}`);
+
+      sendProgress("pdf", "complete", "PDF ready", { downloadUrl: `/download/${reportId}` });
     } catch (err: any) {
-      console.error("[routes/analyze] pricingExtractor failed:", err);
-      sendProgress("pricing", "failed", "Pricing extraction failed (Data unavailable)");
+      console.error("[routes/analyze] PDF generation failed:", err);
+      sendProgress("pdf", "failed", "PDF generation failed");
     }
-  })();
-
-  const wrappedSeo = (async () => {
-    try {
-      seoData = await seoPromise;
-      sendProgress("seo", "complete", "SEO analyzed", { detail: `Performance Score: ${seoData.performanceScore}/100` });
-    } catch (err: any) {
-      console.error("[routes/analyze] seoAnalyzer failed:", err);
-      sendProgress("seo", "failed", "SEO analysis failed (Data unavailable)");
-    }
-  })();
-
-  const wrappedSocial = (async () => {
-    try {
-      socialData = await socialPromise;
-      const ytSub = socialData.youtube?.channelFound ? `YouTube: ${socialData.youtube.subscriberCount} subs` : "";
-      const redditSub = socialData.reddit?.subredditFound ? `Reddit: ${socialData.reddit.subscribers} members` : "";
-      const details = [ytSub, redditSub].filter(Boolean).join(", ") || "No major social channels found";
-      sendProgress("social", "complete", "Social media found", { detail: details });
-    } catch (err: any) {
-      console.error("[routes/analyze] socialDiscoverer failed:", err);
-      sendProgress("social", "failed", "Social discovery failed (Data unavailable)");
-    }
-  })();
-
-  const wrappedContent = (async () => {
-    try {
-      contentData = await contentPromise;
-      sendProgress("content", "complete", "Content strategy analyzed", {
-        detail: contentData.hasActiveBlog ? `Blog active: ${contentData.postingFrequency}` : "No active blog found"
-      });
-    } catch (err: any) {
-      console.error("[routes/analyze] contentAnalyzer failed:", err);
-      sendProgress("content", "failed", "Content strategy analysis failed (Data unavailable)");
-    }
-  })();
-
-  // Run all 5 sub-agents in parallel
-  await Promise.allSettled([
-    wrappedWebsite,
-    wrappedPricing,
-    wrappedSeo,
-    wrappedSocial,
-    wrappedContent
-  ]);
-
-  // SWOT Report step
-  sendProgress("swot", "pending", "Generating SWOT report...");
-  let swotData: any = undefined;
-  try {
-    swotData = await synthesizeSWOT(websiteData, pricingData, seoData, socialData, contentData);
-    sendProgress("swot", "complete", "SWOT generated", { detail: "Analysis complete" });
-  } catch (err: any) {
-    console.error("[routes/analyze] swotSynthesizer failed:", err);
-    sendProgress("swot", "failed", "SWOT generation failed (Data unavailable)");
-  }
-
-  // PDF generation step
-  sendProgress("pdf", "pending", "Building PDF...");
-  try {
-    const report: CompetitorReport = {
-      id: reportId,
-      url: competitorUrl,
-      createdAt: new Date().toISOString(),
-      websiteData,
-      pricingData,
-      seoData,
-      socialData,
-      contentData,
-      swotData
-    };
-
-    const pdfBuffer = await generatePdfBuffer(report);
-
-    // Save PDF in temporary folder
-    const tempDir = os.tmpdir();
-    const filePath = path.join(tempDir, `${reportId}.pdf`);
-    fs.writeFileSync(filePath, pdfBuffer);
-    console.log(`[routes/analyze] PDF saved to temporary location: ${filePath}`);
-
-    sendProgress("pdf", "complete", "PDF ready", { downloadUrl: `/download/${reportId}` });
-  } catch (err: any) {
-    console.error("[routes/analyze] PDF generation failed:", err);
-    sendProgress("pdf", "failed", "PDF generation failed");
-  }
+  });
 
   res.write("event: end\ndata: {}\n\n");
   res.end();

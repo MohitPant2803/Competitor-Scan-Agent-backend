@@ -1,5 +1,8 @@
 import Groq from "groq-sdk";
 import dotenv from "dotenv";
+import { AsyncLocalStorage } from "async_hooks";
+
+export const groqStorage = new AsyncLocalStorage<{ degradedMode?: boolean }>();
 
 dotenv.config();
 
@@ -66,6 +69,10 @@ export async function runGroqPrompt<T>(
       if (model === "llama-3.3-70b-versatile") {
         console.warn(`[groq] Switching to fallback model "llama-3.1-8b-instant" due to error.`);
         model = "llama-3.1-8b-instant";
+        const store = groqStorage.getStore();
+        if (store) {
+          store.degradedMode = true;
+        }
         retries = 0;
         delay = 1000;
         continue;

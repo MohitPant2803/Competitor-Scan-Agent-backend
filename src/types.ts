@@ -31,10 +31,10 @@ export interface PricingData {
 }
 
 export interface SEOData {
-  performanceScore: number;
-  accessibilityScore: number;
-  seoScore: number;
-  bestPracticesScore: number;
+  performanceScore: number | null;
+  accessibilityScore: number | null;
+  seoScore: number | null;
+  bestPracticesScore: number | null;
   LCP: string;
   CLS: string;
   FID: string;
@@ -90,6 +90,7 @@ export interface CompetitorReport {
   id: string;
   url: string;
   createdAt: string;
+  degradedMode?: boolean;
   websiteData?: WebsiteData;
   pricingData?: PricingData;
   seoData?: SEOData;
